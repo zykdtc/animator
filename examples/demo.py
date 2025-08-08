@@ -1,26 +1,36 @@
 import pygame
 import os
-from animator.animation import Animation
 from animator.sprite import Sprite
 from animator.parser import load_instructions
-from animator.easing import linear
+from animator.exporter import export_animation
 
 def main():
+    # Load assets
     pygame.init()
-    screen = pygame.display.set_mode((640, 480))
+    pygame.display.set_mode((1, 1), flags=pygame.HIDDEN)  # or headless
 
-    image_path = os.path.join(os.path.dirname(__file__), "../assets/sprite.png")
-    sprite_img = pygame.image.load(image_path).convert_alpha()
+    hero_img = pygame.image.load("examples/assets/hero.png").convert_alpha()
+    sprites = {
+        "hero": Sprite("hero", hero_img)
+    }
 
-    sprite = Sprite("hero", sprite_img, (50, 50))
-    sprite.move_to((300, 200), start_time=0, duration=2.0, easing_func=linear)
+    # Load and assign animations
+    load_instructions("examples/animation.json", sprites)
 
-    sprites = {"hero": sprite}
-    instructions = []  # For now, just use hardcoded move above
+    # Draw function per frame
+    def draw_frame(surface: pygame.Surface, time: float):
+        for sprite in sprites.values():
+            sprite.update(time)
+            sprite.draw(surface)
 
-    animation = Animation(screen, instructions, sprites, export_path="output.mp4")
-    animation.run()
-
+    export_animation(
+        width=640,
+        height=480,
+        duration=5.0,
+        fps=30,
+        draw_frame_fn=draw_frame,
+        output_path="output.mp4"
+    )
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,26 @@
+[
+  {
+    "type": "move",
+    "target": "hero",
+    "from": [0, 200],
+    "to": [400, 200],
+    "start": 0.0,
+    "duration": 2.0
+  },
+  {
+    "type": "fade",
+    "target": "hero",
+    "from": 255,
+    "to": 0,
+    "start": 2.0,
+    "duration": 1.0
+  },
+  {
+    "type": "move",
+    "target": "hero",
+    "from": [40, 100],
+    "to": [400, 200],
+    "start": 2.0,
+    "duration": 2.0
+  }
+]
