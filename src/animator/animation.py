@@ -1,58 +1,83 @@
-import numpy
+from __future__ import annotations
+import os
 import pygame
-from animator.sprite import Sprite
-from animator.easing import linear
-import imageio.v3 as iio
+from typing import Dict, Optional, Tuple
+
+from animator.parser import load_scene
+from animator.exporter import export_animation
 
 class Animation:
-    def __init__(self, screen: pygame.Surface, instructions, sprites: dict[str, Sprite], export_path: str | None = None):
-        self.screen = screen
-        self.instructions = instructions
-        self.sprites = sprites
-        self.clock = pygame.time.Clock()
-        self.time = 0.0
-        self.frames: list[numpy.ndarray] = []
-        self.export_path = export_path
+    """
+    Public interface:
 
-    def run(self):
-        running = True
-        frame_count = 0
+        import animator.animation
+        sample_assets = "examples/sample/assets"
+        sample_instructions = "examples/sample/animation.json"
+        anim = animator.animation.Animation(sample_assets, sample_instructions,
+                                            canvas_size=(640, 480), fps=30)
+        anim.export("examples/sample/output.mp4")
+    """
 
-        while running:
-            dt = self.clock.tick(60) / 1000.0  # 60 FPS
-            self.time += dt
-            self.screen.fill((255, 255, 255))
+    def __init__(
+        self,
+        assets_dir: str,
+        instructions_path: str,
+        canvas_size: Tuple[int, int] = (640, 480),
+        fps: int = 30,
+        bg_color: Tuple[int, int, int] = (255, 255, 255),
+    ) -> None:
+        self.assets_dir = assets_dir
+        self.instructions_path = instructions_path
+        self.width, self.height = canvas_size
+        self.fps = fps
+        self.bg_color = bg_color
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
+        # Initialize pygame in hidden mode so we can convert images w/ alpha.
+        pygame.init()
+        pygame.display.set_mode((1, 1), flags=pygame.HIDDEN)
 
-            for sprite in self.sprites.values():
-                sprite.update(self.time)
-                sprite.draw(self.screen)
+        # Build sprites + animations from instructions (images deduped internally)
+        self.sprites, self.scene_duration = load_scene(
+            self.instructions_path, self.assets_dir
+        )
 
-            # Capture frame
-            if self.export_path:
-                frame = pygame.surfarray.array3d(self.screen).swapaxes(0, 1)
-                self.frames.append(frame)
+    def _draw_frame(self, surface: pygame.Surface, t: float) -> None:
+        surface.fill(self.bg_color)
+        # Update then draw (deterministic order by name)
+        for name in sorted(self.sprites.keys()):
+            sp = self.sprites[name]
+            sp.update(t)
+            sp.draw(surface)
 
-            pygame.display.flip()
-            frame_count += 1
+    def export(self, output_path: str, duration: Optional[float] = None) -> None:
+        """Render frames headlessly and write to GIF/MP4 based on extension."""
+        try:
+            # If MP4, ensure ffmpeg plugin is importable (zsh users: quote extras).
+            import imageio_ffmpeg  # noqa: F401
+        except Exception:
+            # Not fatal for GIF/PNG sequences; MP4 writer will fail without it.
+            pass
 
-            if self.time > 3.0:  # Stop after 3 seconds (or use instruction-driven duration)
-                running = False
+        final_duration = (
+            float(duration) if duration is not None else float(self.scene_duration)
+        )
 
-        if self.export_path:
-            if self.export_path.endswith('.mp4'):
-                iio.imwrite(
-                    "output.mp4",
-                    self.frames,
-                    codec="libx264",  # common H.264 codec
-                    fps=60
-                )
-            elif self.export_path.endswith('.gif'):
-                iio.imwrite(
-                    "output.gif",
-                    self.frames,
-                    fps=60
-                )
+        export_animation(
+            width=self.width,
+            height=self.height,
+            duration=final_duration,
+            fps=self.fps,
+            draw_frame_fn=self._draw_frame,
+            output_path=output_path,
+        )
+
+    def summary(self) -> str:
+        lines = [
+            f"Canvas: {self.width}x{self.height} @ {self.fps} FPS",
+            f"Sprites: {len(self.sprites)}",
+            f"Duration: {self.scene_duration:.3f}s",
+        ]
+        for name, sp in sorted(self.sprites.items()):
+            w, h = sp.natural_size
+            lines.append(f" - {name}: size={w}x{h}, pos={tuple(sp.position)}")
+        return "\n".join(lines)
