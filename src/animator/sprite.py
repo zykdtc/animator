@@ -1,22 +1,8 @@
 from __future__ import annotations
-from typing import Callable, List, Tuple
+from typing import List, Tuple
 from PIL import Image
 
-class AnimationInstruction:
-    def __init__(self, start: float, duration: float, update_fn: Callable[[float], None]):
-        self.start = float(start)
-        self.duration = float(duration)
-        self.update_fn = update_fn
-
-    def applies(self, t: float) -> bool:
-        return self.start <= t <= (self.start + self.duration)
-
-    def apply(self, t: float) -> None:
-        if not self.applies(t):
-            return
-        u = (t - self.start) / self.duration if self.duration > 0 else 1.0
-        u = 0.0 if u < 0 else (1.0 if u > 1.0 else u)
-        self.update_fn(u)
+from animator.instruction import Instruction
 
 class Sprite:
     def __init__(self, name: str, image: Image.Image, position=(0, 0), visible=False):
@@ -25,12 +11,12 @@ class Sprite:
         self.position = list(position)
         self.opacity = 255
         self.visible = visible  # hidden until first instruction starts
-        self.animations: List[AnimationInstruction] = []
+        self.instructions: List[Instruction] = []
         self.natural_size: Tuple[int, int] = self.base_image.size
 
     def update(self, t: float) -> None:
         any_active = False
-        for anim in self.animations:
+        for anim in self.instructions:
             if t >= anim.start:
                 any_active = True
             anim.apply(t)

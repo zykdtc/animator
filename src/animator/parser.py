@@ -3,19 +3,20 @@ import json, os
 from typing import Dict, Tuple, Any
 from PIL import Image
 
-from animator.sprite import Sprite, AnimationInstruction
+from animator.sprite import Sprite
+from animator.instruction import MoveInst, FadeInst, Instruction
 
 
-def _compute_duration(animations: list[dict]) -> float:
+def _compute_duration(instructions: list[dict]) -> float:
     end = 0.0
-    for a in animations:
+    for a in instructions:
         end = max(end, float(a["start"]) + float(a["duration"]))
     return end
 
 
 def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprite], float]:
     """
-    Build sprites (with PIL images) and attach animations from a JSON scene file.
+    Build sprites (with PIL images) and attach instructions from a JSON scene file.
 
     JSON schema (example):
     {
@@ -23,7 +24,7 @@ def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprit
         {"name": "hero1", "image": "hero.png", "initial_position": [0,100]},
         {"name": "hero2", "image": "hero.png", "initial_position": [0,200]}
       ],
-      "animations": [
+      "instructions": [
         {"type":"move","target":"hero1","from":[0,100],"to":[300,100],"start":0.0,"duration":2.0},
         {"type":"fade","target":"hero2","from":0,"to":255,"start":1.0,"duration":1.0}
       ]
@@ -48,7 +49,7 @@ def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprit
 
         sprites[name] = Sprite(name, image_cache[img_name], pos, visible=False)
 
-    for a in data.get("animations", []):
+    for a in data.get("instructions", []):
         tname = a["target"]
         if tname not in sprites:
             raise KeyError(f"Target sprite '{tname}' not declared in 'sprites'.")
@@ -57,19 +58,14 @@ def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprit
 
         if atype == "move":
             p0 = tuple(a["from"]) ; p1 = tuple(a["to"])
-            def move_fn(u: float, sp=sp, p0=p0, p1=p1):
-                sp.position[0] = p0[0] + (p1[0] - p0[0]) * u
-                sp.position[1] = p0[1] + (p1[1] - p0[1]) * u
-            sp.animations.append(AnimationInstruction(start, dur, move_fn))
+            sp.instructions.append(MoveInst(sp, start, dur, p0, p1))
 
         elif atype == "fade":
             a0 = int(a["from"]) ; a1 = int(a["to"])
-            def fade_fn(u: float, sp=sp, a0=a0, a1=a1):
-                sp.opacity = int(round(a0 + (a1 - a0) * u))
-            sp.animations.append(AnimationInstruction(start, dur, fade_fn))
+            sp.instructions.append(FadeInst(sp, start, dur, a0, a1))
 
         else:
             raise ValueError(f"Unknown animation type: {atype}")
 
-    total_duration = _compute_duration(data.get("animations", []))
+    total_duration = _compute_duration(data.get("instructions", []))
     return sprites, total_duration
