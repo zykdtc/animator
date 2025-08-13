@@ -34,19 +34,9 @@ class Animation:
             self.instructions_path, self.assets_dir
         )
 
-    def _draw_frame(self, image, t: float) -> None:
-        # image is a PIL.Image in RGBA mode; clear to bg
-        r, g, b = self.bg_color
-        image.paste((r, g, b, 255), (0, 0, self.width, self.height))
-        # Update then draw (deterministic order by name)
-        for name in sorted(self.sprites.keys()):
-            sp = self.sprites[name]
-            sp.update(t)
-            sp.draw(image)
-
     def export(self, output_path: str, duration: Optional[float] = None) -> None:
         try:
-            import imageio_ffmpeg  # noqa: F401 (optional, for MP4)
+            import imageio_ffmpeg  # noqa: F401
         except Exception:
             pass
         final_duration = float(duration) if duration is not None else float(self.scene_duration)
@@ -55,7 +45,7 @@ class Animation:
             height=self.height,
             duration=final_duration,
             fps=self.fps,
-            draw_frame_fn=self._draw_frame,
+            sprites=self.sprites,
             output_path=output_path,
             bg_color=self.bg_color,
         )
