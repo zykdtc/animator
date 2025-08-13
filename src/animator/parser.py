@@ -4,13 +4,18 @@ from typing import Dict, Tuple, Any
 from PIL import Image
 
 from animator.sprite import Sprite
-from animator.instruction import MoveInst, FadeInst, Instruction
+from animator.instruction import EntryInst, ExitInst, MoveInst, FadeInst, Instruction
 
 
 def _compute_duration(instructions: list[dict]) -> float:
     end = 0.0
     for a in instructions:
-        end = max(end, float(a["start"]) + float(a["duration"]))
+        if a["type"] in ("move", "fade"):
+            end = max(end, float(a["start"]) + float(a["duration"]))
+        elif a["type"] in ("entry", "exit"):
+            # instantaneous events contribute their time to scene duration
+            when = float(a.get("time", a.get("start", 0.0)))
+            end = max(end, when)
     return end
 
 
@@ -54,13 +59,25 @@ def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprit
         if tname not in sprites:
             raise KeyError(f"Target sprite '{tname}' not declared in 'sprites'.")
         sp = sprites[tname]
-        start = float(a["start"]) ; dur = float(a["duration"]) ; atype = a["type"]
+        atype = a["type"]
 
-        if atype == "move":
+        if atype == "entry":
+            # prefer explicit 'time'; allow 'start' for symmetry
+            t = float(a.get("time", a.get("start", 0.0)))
+            pos = tuple(a["position"])  # required
+            sp.instructions.append(EntryInst(sp, t, pos))
+
+        elif atype == "exit":
+            t = float(a.get("time", a.get("start", 0.0)))
+            sp.instructions.append(ExitInst(sp, t))
+
+        elif atype == "move":
+            start = float(a["start"]) ; dur = float(a["duration"])
             p0 = tuple(a["from"]) ; p1 = tuple(a["to"])
             sp.instructions.append(MoveInst(sp, start, dur, p0, p1))
 
         elif atype == "fade":
+            start = float(a["start"]) ; dur = float(a["duration"])
             a0 = int(a["from"]) ; a1 = int(a["to"])
             sp.instructions.append(FadeInst(sp, start, dur, a0, a1))
 

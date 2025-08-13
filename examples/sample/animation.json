@@ -1,11 +1,14 @@
 {
   "sprites": [
-    { "name": "hero1", "image": "hero.png", "initial_position": [0, 100] },
-    { "name": "hero2", "image": "hero.png", "initial_position": [0, 220] }
+    { "name": "hero", "image": "hero.png", "initial_position": [0, 0] }
   ],
   "instructions": [
-    { "type": "move", "target": "hero1", "from": [-120, 100], "to": [360, 100], "start": 0.0, "duration": 2.0 },
-    { "type": "fade", "target": "hero2", "from": 0, "to": 255, "start": 0.8, "duration": 0.8 },
-    { "type": "move", "target": "hero2", "from": [0, 220], "to": [420, 220], "start": 0.8, "duration": 2.0 }
+    { "type": "entry", "target": "hero", "position": [50,120], "time": 0.5 },
+    { "type": "move",  "target": "hero", "from": [50,120], "to": [300,120], "start": 0.5, "duration": 1.5 },
+    { "type": "exit",  "target": "hero", "time": 2.2 },
+
+    { "type": "entry", "target": "hero", "position": [20,200], "time": 3.0 },
+    { "type": "move",  "target": "hero", "from": [20,200], "to": [420,200], "start": 3.0, "duration": 1.2 },
+    { "type": "exit",  "target": "hero", "time": 5.0 }
   ]
 }
