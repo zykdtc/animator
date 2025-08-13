@@ -1,15 +1,8 @@
 from __future__ import annotations
-import pygame
-import imageio.v3 as iio
+from typing import Callable, List, Tuple
 import numpy as np
-from typing import Callable, List
-
-
-def _init_headless(width: int, height: int) -> pygame.Surface:
-    pygame.display.init()
-    pygame.display.set_mode((1, 1), flags=pygame.HIDDEN)
-    screen = pygame.Surface((width, height))
-    return screen
+from PIL import Image
+import imageio.v3 as iio
 
 
 def render_frames(
@@ -17,24 +10,22 @@ def render_frames(
     height: int,
     duration: float,
     fps: int,
-    draw_frame_fn: Callable[[pygame.Surface, float], None],
+    draw_frame_fn: Callable[[Image.Image, float], None],
+    bg_color: Tuple[int, int, int],
 ) -> List[np.ndarray]:
-    pygame.init()
-    screen = _init_headless(width, height)
-
     frames: List[np.ndarray] = []
     t = 0.0
     dt = 1.0 / float(fps)
 
-    # Use <= so last frame at exactly duration is captured
     while t <= duration + 1e-9:
-        screen.fill((255, 255, 255))
-        draw_frame_fn(screen, t)
-        frame = pygame.surfarray.array3d(screen).swapaxes(0, 1)
-        frames.append(frame)
+        # RGBA canvas for compositing
+        canvas = Image.new("RGBA", (width, height), (*bg_color, 255))
+        draw_frame_fn(canvas, t)
+        # Convert to RGB ndarray for imageio
+        rgb = canvas.convert("RGB")
+        frames.append(np.asarray(rgb))
         t += dt
 
-    pygame.quit()
     return frames
 
 
@@ -43,8 +34,9 @@ def export_animation(
     height: int,
     duration: float,
     fps: int,
-    draw_frame_fn: Callable[[pygame.Surface, float], None],
+    draw_frame_fn: Callable[[Image.Image, float], None],
     output_path: str,
+    bg_color: Tuple[int, int, int] = (255, 255, 255),
 ) -> None:
-    frames = render_frames(width, height, duration, fps, draw_frame_fn)
+    frames = render_frames(width, height, duration, fps, draw_frame_fn, bg_color)
     iio.imwrite(output_path, frames, fps=fps)

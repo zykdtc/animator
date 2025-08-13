@@ -1,6 +1,4 @@
 from __future__ import annotations
-import os
-import pygame
 from typing import Dict, Optional, Tuple
 
 from animator.parser import load_scene
@@ -11,10 +9,9 @@ class Animation:
     Public interface:
 
         import animator.animation
-        sample_assets = "examples/sample/assets"
-        sample_instructions = "examples/sample/animation.json"
-        anim = animator.animation.Animation(sample_assets, sample_instructions,
-                                            canvas_size=(640, 480), fps=30)
+        assets = "examples/sample/assets"
+        inst = "examples/sample/animation.json"
+        anim = animator.animation.Animation(assets, inst, canvas_size=(640, 480), fps=30)
         anim.export("examples/sample/output.mp4")
     """
 
@@ -32,36 +29,27 @@ class Animation:
         self.fps = fps
         self.bg_color = bg_color
 
-        # Initialize pygame in hidden mode so we can convert images w/ alpha.
-        pygame.init()
-        pygame.display.set_mode((1, 1), flags=pygame.HIDDEN)
-
-        # Build sprites + animations from instructions (images deduped internally)
+        # Build sprites + animations from instructions
         self.sprites, self.scene_duration = load_scene(
             self.instructions_path, self.assets_dir
         )
 
-    def _draw_frame(self, surface: pygame.Surface, t: float) -> None:
-        surface.fill(self.bg_color)
+    def _draw_frame(self, image, t: float) -> None:
+        # image is a PIL.Image in RGBA mode; clear to bg
+        r, g, b = self.bg_color
+        image.paste((r, g, b, 255), (0, 0, self.width, self.height))
         # Update then draw (deterministic order by name)
         for name in sorted(self.sprites.keys()):
             sp = self.sprites[name]
             sp.update(t)
-            sp.draw(surface)
+            sp.draw(image)
 
     def export(self, output_path: str, duration: Optional[float] = None) -> None:
-        """Render frames headlessly and write to GIF/MP4 based on extension."""
         try:
-            # If MP4, ensure ffmpeg plugin is importable (zsh users: quote extras).
-            import imageio_ffmpeg  # noqa: F401
+            import imageio_ffmpeg  # noqa: F401 (optional, for MP4)
         except Exception:
-            # Not fatal for GIF/PNG sequences; MP4 writer will fail without it.
             pass
-
-        final_duration = (
-            float(duration) if duration is not None else float(self.scene_duration)
-        )
-
+        final_duration = float(duration) if duration is not None else float(self.scene_duration)
         export_animation(
             width=self.width,
             height=self.height,
@@ -69,6 +57,7 @@ class Animation:
             fps=self.fps,
             draw_frame_fn=self._draw_frame,
             output_path=output_path,
+            bg_color=self.bg_color,
         )
 
     def summary(self) -> str:

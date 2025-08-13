@@ -1,13 +1,9 @@
 from __future__ import annotations
-import json
-import os
+import json, os
 from typing import Dict, Tuple, Any
-import pygame
+from PIL import Image
 
 from animator.sprite import Sprite, AnimationInstruction
-
-# Optional: simple linear easing; can be extended via animator.easing
-_def_ease = lambda x: x
 
 
 def _compute_duration(animations: list[dict]) -> float:
@@ -19,7 +15,7 @@ def _compute_duration(animations: list[dict]) -> float:
 
 def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprite], float]:
     """
-    Build sprites (with images) and attach animations from a JSON scene file.
+    Build sprites (with PIL images) and attach animations from a JSON scene file.
 
     JSON schema (example):
     {
@@ -37,9 +33,8 @@ def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprit
         data: Dict[str, Any] = json.load(f)
 
     sprites: Dict[str, Sprite] = {}
-    image_cache: Dict[str, pygame.Surface] = {}
+    image_cache: Dict[str, Image.Image] = {}
 
-    # Create Sprite instances (dedupe images by filename)
     for spec in data.get("sprites", []):
         name = spec["name"]
         img_name = spec["image"]
@@ -49,19 +44,16 @@ def load_scene(instructions_path: str, assets_dir: str) -> Tuple[Dict[str, Sprit
             img_path = os.path.join(assets_dir, img_name)
             if not os.path.exists(img_path):
                 raise FileNotFoundError(f"Asset not found: {img_path}")
-            image_cache[img_name] = pygame.image.load(img_path).convert_alpha()
+            image_cache[img_name] = Image.open(img_path).convert("RGBA")
 
         sprites[name] = Sprite(name, image_cache[img_name], pos, visible=False)
 
-    # Attach animations to their targets
     for a in data.get("animations", []):
         tname = a["target"]
         if tname not in sprites:
             raise KeyError(f"Target sprite '{tname}' not declared in 'sprites'.")
         sp = sprites[tname]
-        start = float(a["start"])
-        dur = float(a["duration"])
-        atype = a["type"]
+        start = float(a["start"]) ; dur = float(a["duration"]) ; atype = a["type"]
 
         if atype == "move":
             p0 = tuple(a["from"]) ; p1 = tuple(a["to"])
