@@ -4,7 +4,7 @@
   ],
   "instructions": [
     { "type": "entry", "target": "hero", "position": [50,120], "time": 0.5 },
-    { "type": "move",  "target": "hero", "from": [50,120], "to": [300,120], "start": 0.5, "duration": 1.5 },
+    { "type": "move",  "target": "hero", "from": [50,120], "to": [300,120], "start": 0.5, "duration": 1.7 },
     { "type": "exit",  "target": "hero", "time": 2.2 },
 
     { "type": "entry", "target": "hero", "position": [20,200], "time": 3.0 },
